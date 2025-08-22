@@ -1,52 +1,55 @@
-
-
 resource "digitalocean_droplet" "laravel_app" {
   name   = var.droplet_name
   region = "nyc3"
-  size   = "s-1vcpu-1gb" # el más barato 😅
+  size   = "s-1vcpu-1gb"
   image  = "ubuntu-22-04-x64"
 
   user_data = <<-EOF
     #!/bin/bash
-    set -e
+    exec > >(tee -a /var/log/user-data.log) 2>&1
+    set -xe
 
-    # Actualizar sistema
+    log() {
+      echo "[SETUP] $1"
+    }
+
+    log "Actualizando sistema..."
     apt update && apt upgrade -y
 
-    # Paquetes base
+    log "Instalando paquetes base..."
     apt install -y software-properties-common curl zip unzip git ufw
 
-    # Instalar PHP y extensiones
+    log "Instalando PHP y extensiones..."
     apt install -y php php-cli php-common php-mbstring php-xml php-bcmath php-curl php-zip php-tokenizer php-json php8.3-fpm
 
-    # Instalar Composer
-    curl -sS https://getcomposer.org/installer | php
+    log "Instalando Composer..."
+    curl -sS https://getcomposer.org/installer | php || { log "ERROR instalando Composer"; exit 1; }
     mv composer.phar /usr/local/bin/composer
 
-    # Instalar Nginx
+    log "Instalando Nginx..."
     apt install -y nginx
     systemctl enable nginx
     systemctl start nginx
 
-    # Configurar firewall
+    log "Configurando firewall..."
     ufw allow OpenSSH
     ufw allow 'Nginx Full'
     echo "y" | ufw enable
 
-    # Clonar el proyecto Laravel
+    log "Clonando proyecto Laravel..."
     mkdir -p /var/www/laravel
     cd /var/www
-    git clone https://${var.git_token}@${var.git_repo} laravel
+    git clone https://${var.git_token}@${var.git_repo} laravel || { log "ERROR clonando el repositorio"; exit 1; }
     cd laravel
 
-    # Instalar dependencias de Laravel
-    composer install --no-dev --optimize-autoloader
+    log "Instalando dependencias de Laravel..."
+    composer install --no-dev --optimize-autoloader || { log "ERROR instalando dependencias"; exit 1; }
 
-    # Permisos
+    log "Configurando permisos..."
     chown -R www-data:www-data /var/www/laravel
     chmod -R 775 /var/www/laravel/storage /var/www/laravel/bootstrap/cache
 
-    # Configuración de Nginx
+    log "Creando configuración de Nginx..."
     cat > /etc/nginx/sites-available/laravel <<NGINX_CONF
     server {
         listen 80;
@@ -72,9 +75,9 @@ resource "digitalocean_droplet" "laravel_app" {
     }
     NGINX_CONF
 
-    ln -s /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/
+    ln -s /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/ || true
     nginx -t && systemctl restart nginx
 
-    echo "Laravel instalado con éxito 🚀"
+    log "✅ Laravel instalado con éxito 🚀"
   EOF
 }
