@@ -6,11 +6,11 @@ resource "digitalocean_droplet" "laravel_app" {
 
   user_data = <<-EOF
     #!/bin/bash
-    exec > >(tee -a /var/log/user-data.log) 2>&1
+    exec > /var/log/laravel-setup.log 2>&1
     set -xe
 
     log() {
-      echo "[SETUP] $1"
+      echo "[LARAVEL-SETUP] $1"
     }
 
     log "Actualizando sistema..."
@@ -23,7 +23,7 @@ resource "digitalocean_droplet" "laravel_app" {
     apt install -y php php-cli php-common php-mbstring php-xml php-bcmath php-curl php-zip php-tokenizer php-json php8.3-fpm
 
     log "Instalando Composer..."
-    curl -sS https://getcomposer.org/installer | php || { log "ERROR instalando Composer"; exit 1; }
+    curl -sS https://getcomposer.org/installer | php || { log "❌ ERROR instalando Composer"; exit 1; }
     mv composer.phar /usr/local/bin/composer
 
     log "Instalando Nginx..."
@@ -39,17 +39,17 @@ resource "digitalocean_droplet" "laravel_app" {
     log "Clonando proyecto Laravel..."
     mkdir -p /var/www/laravel
     cd /var/www
-    git clone https://${var.git_token}@${var.git_repo} laravel || { log "ERROR clonando el repositorio"; exit 1; }
+    git clone https://${var.git_token}@${var.git_repo} laravel || { log "❌ ERROR clonando el repositorio"; exit 1; }
     cd laravel
 
     log "Instalando dependencias de Laravel..."
-    composer install --no-dev --optimize-autoloader || { log "ERROR instalando dependencias"; exit 1; }
+    composer install --no-dev --optimize-autoloader || { log "❌ ERROR instalando dependencias"; exit 1; }
 
     log "Configurando permisos..."
     chown -R www-data:www-data /var/www/laravel
     chmod -R 775 /var/www/laravel/storage /var/www/laravel/bootstrap/cache
 
-    log "Creando configuración de Nginx..."
+    log "Configurando Nginx para Laravel..."
     cat > /etc/nginx/sites-available/laravel <<NGINX_CONF
     server {
         listen 80;
