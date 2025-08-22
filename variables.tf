@@ -16,7 +16,7 @@ variable "do_token" {
   sensitive   = true
 }
 
-# Nombre del Droplet
+# Nombre del Droplet iniciando la depuración.
 variable "droplet_name" {
   description = "Nombre del servidor"
   type        = string
