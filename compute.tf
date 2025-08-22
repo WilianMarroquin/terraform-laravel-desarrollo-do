@@ -36,7 +36,7 @@ resource "digitalocean_droplet" "laravel_app" {
     # Clonar el proyecto Laravel
     mkdir -p /var/www/laravel
     cd /var/www
-    GIT_ASKPASS=/bin/echo git clone https://${var.git_token}@${var.git_repo} laravel
+    git clone https://${var.git_token}@${var.git_repo} laravel
     cd laravel
 
     # Instalar dependencias de Laravel
